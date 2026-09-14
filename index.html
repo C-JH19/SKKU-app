@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기숙사 식단 조회</title>
+    <style>
+        :root {
+            --primary-color: #355e00;
+            --primary-hover: #294800;
+            --warning-bg: #fef3c7;
+            --bg-color: #ffffff;
+            /* 모바일 모드 기본 배경 */
+            --border-color: #e9ecef;
+            --text-color: #333333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            box-sizing: border-box;
+            min-height: 100vh;
+        }
+
+        /* 📱 기본(모바일) : 화면에 꽉 차는 레이아웃 */
+        .container {
+            width: 100%;
+            max-width: 100%;
+            background: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin: 4px 0 12px 0;
+            font-size: 18px;
+            text-align: center;
+            color: var(--primary-color);
+        }
+
+        /* 🕒 이전 식단 안내 뱃지 */
+        .past-badge {
+            display: none;
+            background-color: var(--warning-bg);
+            color: #92400e;
+            border: 1px solid #fde68a;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            margin: 0 auto 10px auto;
+            width: fit-content;
+        }
+
+        .past-badge.show {
+            display: block;
+        }
+
+        /* 날짜 컨트롤 영역 */
+        .date-controller {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        /* 날짜 + 요일 + 상대 날짜 텍스트 */
+        .date-display {
+            flex: 1;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color);
+            padding: 6px 0;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .date-display .day-of-week {
+            color: var(--primary-color);
+            margin-left: 2px;
+        }
+
+        .date-display .relative-date {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555555;
+            margin-left: 4px;
+        }
+
+        .btn {
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+
+        .btn:hover {
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+        }
+
+        /* 오늘 버튼 (다른 날일 때: 테두리만) */
+        .btn-today {
+            background-color: #ffffff;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            font-weight: 600;
+        }
+
+        .btn-today:hover {
+            background-color: #f0f7e6;
+        }
+
+        /* 오늘 날짜일 때: 배경색 꽉 찬 상태 */
+        .btn-today.is-today {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: 1px solid var(--primary-color);
+        }
+
+        .btn-today.is-today:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* iframe 영역 (모바일) */
+        .frame-wrapper {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 150px);
+            min-height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* 💻 📱 iPad / 태블릿 / PC (화면 너비 768px 이상) : 카드 스타일 적용 */
+        @media (min-width: 768px) {
+            :root {
+                --bg-color: #f8f9fa;
+            }
+
+            body {
+                padding: 40px 20px;
+                align-items: flex-start;
+            }
+
+            .container {
+                max-width: 480px;
+                border-radius: 12px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+                padding: 24px;
+                border: 1px solid rgba(0, 0, 0, 0.05);
+            }
+
+            h2 {
+                font-size: 20px;
+                margin-bottom: 16px;
+            }
+
+            .date-display {
+                font-size: 15px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .frame-wrapper {
+                height: 650px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>성균관대 기숙사 식단</h2>
+
+        <!-- 🕒 이전 식단 안내 뱃지 -->
+        <div id="pastBadge" class="past-badge">
+            🕒 이전 식단
+        </div>
+
+        <!-- 날짜 조작 컨트롤 -->
+        <div class="date-controller">
+            <button id="prevBtn" class="btn" onclick="changeDate(-1)">◄ 전날</button>
+            <button id="todayBtn" class="btn btn-today" onclick="setToday()">오늘</button>
+
+            <div class="date-display" id="dateDisplay">-</div>
+
+            <button id="nextBtn" class="btn" onclick="changeDate(1)">다음날 ►</button>
+        </div>
+
+        <!-- 식단 프레임 -->
+        <div class="frame-wrapper">
+            <iframe id="menuFrame" src=""></iframe>
+        </div>
+    </div>
+
+    <script>
+        const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+        let currentDateObj = new Date();
+
+        // YYYY-MM-DD 포맷 변환
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 상대적 날짜 텍스트 계산 (오늘, 어제, 내일, N일 전/후)
+        function getRelativeDateString(targetDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const target = new Date(targetDate);
+            target.setHours(0, 0, 0, 0);
+
+            const diffTime = target - today;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) return '오늘';
+            if (diffDays === -1) return '어제';
+            if (diffDays === -2) return '그저께';
+            if (diffDays === 1) return '내일';
+            if (diffDays === 2) return '모레';
+            if (diffDays < 0) return `${Math.abs(diffDays)}일 전`;
+            return `${diffDays}일 후`;
+        }
+
+        // 날짜 상태 판단 및 UI 업데이트
+        function updateUIState() {
+            const selectedDateStr = formatDate(currentDateObj);
+            const todayStr = formatDate(new Date());
+
+            const isPast = selectedDateStr < todayStr;
+            const isToday = selectedDateStr === todayStr;
+
+            // 요일 및 상대 날짜 구하기
+            const dayName = WEEKDAYS[currentDateObj.getDay()];
+            const relativeStr = getRelativeDateString(currentDateObj);
+
+            // 컨트롤 바 중앙에 [YYYY-MM-DD (요일) · 오늘/내일/N일 전] 표시
+            document.getElementById('dateDisplay').innerHTML =
+                `${selectedDateStr} <span class="day-of-week">(${dayName})</span> <span class="relative-date">· ${relativeStr}</span>`;
+
+            // 과거 식단 뱃지 표시
+            const pastBadge = document.getElementById('pastBadge');
+            if (isPast) {
+                pastBadge.classList.add('show');
+            } else {
+                pastBadge.classList.remove('show');
+            }
+
+            // '오늘' 버튼 스타일 토글
+            const todayBtn = document.getElementById('todayBtn');
+            if (isToday) {
+                todayBtn.classList.add('is-today');
+            } else {
+                todayBtn.classList.remove('is-today');
+            }
+        }
+
+        // 식단 불러오기
+        function loadMenu() {
+            updateUIState();
+
+            const year = currentDateObj.getFullYear();
+            const month = currentDateObj.getMonth() + 1;
+            const day = currentDateObj.getDate();
+
+            const targetUrl = `https://dorm.skku.edu/_custom/skku/_common/board/schedule_menu/food_menu_page.jsp?year=${year}&month=${month}&day=${day}&board_no=61&lng=ko`;
+
+            document.getElementById('menuFrame').src = targetUrl;
+        }
+
+        // '오늘'로 돌아가기
+        function setToday() {
+            currentDateObj = new Date();
+            loadMenu();
+        }
+
+        // 이전/다음날 이동
+        function changeDate(days) {
+            currentDateObj.setDate(currentDateObj.getDate() + days);
+            loadMenu();
+        }
+
+        // 페이지 진입 시 오늘 날짜로 자동 실행
+        window.onload = setToday;
+    </script>
+
+</body>
+
+</html>
